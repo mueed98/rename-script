@@ -44,9 +44,9 @@ export class AppController {
             dataToDB.image = 'https://images.trackthemyth.io/' + newLink[_.size(newLink) - 1];
           }
       
-      //console.log(dataToDB);
+      console.log(dataToDB);
       
-      //await nfts.findByIdAndUpdate({_id :nftData[i]['_id'] } , dataToDB).lean();
+      await nfts.findByIdAndUpdate({_id :nftData[i]['_id'] } , dataToDB).lean();
     }
 
     console.log("--> size of nftdata : ", _.size(nftData));
@@ -54,6 +54,8 @@ export class AppController {
     console.log("--> parsed records : ", skip);
 
     }while(true);
+
+    console.log('--- All Done ---');
 
   }
 
