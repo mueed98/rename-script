@@ -38,11 +38,11 @@ export class AppController {
         numeric_id :  nftData[i]['token_id'] ? parseInt(nftData[i]['token_id']) : null
       }
 
-      console.log(nftData[i]);
+      // console.log(nftData[i]);
 
-      console.log(dataToDB);
+      // console.log(dataToDB);
       
-      //await nfts.findByIdAndUpdate({_id :nftData[i]['_id'] } , dataToDB).lean();
+      await nfts.findByIdAndUpdate({_id :nftData[i]['_id'] } , dataToDB).lean();
     }
 
     console.log("--> size of nftdata : ", _.size(nftData));
