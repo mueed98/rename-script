@@ -1,8 +1,9 @@
 import mongoose from "mongoose";
 const nftModelSchema = new mongoose.Schema({
-  token_id: String,
+  token_id: {type : String, index : true , default : null},
   owner : String,
   token_uri: String,
+  numeric_id : {type: Number,index: true, default:null},
   nft_name : {type :String, default:null},
   shortName : {type :String, default:null},
   description : {type :String, default:null},

@@ -25,8 +25,8 @@ export class AppController {
     do{
 
     await this.connectToMongo();
-    
-    const nftData = await nfts.find({nftCollection : new ObjectId(collectionId)}).select(['image']).skip(skip).limit(limit).lean();
+
+    const nftData = await nfts.find({numeric_id : null}).select(['numeric_id', 'token_id']).skip(skip).limit(limit).lean();
 
     if(_.size(nftData) == 0)
       break;
@@ -35,23 +35,22 @@ export class AppController {
     for ( let i=0; i< _.size(nftData); i++ ){
       
       let dataToDB = {
-        image : null,
+        numeric_id :  nftData[i]['token_id'] ? parseInt(nftData[i]['token_id']) : null
       }
-      //console.log(nftData);
 
-      if(nftData[i]['image']){
-            let newLink = nftData[i]['image'].split("/");
-            dataToDB.image = 'https://images.trackthemyth.io/' + newLink[_.size(newLink) - 1];
-          }
-      
+      console.log(nftData[i]);
+
       console.log(dataToDB);
       
-      await nfts.findByIdAndUpdate({_id :nftData[i]['_id'] } , dataToDB).lean();
+      //await nfts.findByIdAndUpdate({_id :nftData[i]['_id'] } , dataToDB).lean();
     }
 
     console.log("--> size of nftdata : ", _.size(nftData));
     skip = skip + 1000;
     console.log("--> parsed records : ", skip);
+
+    const count = await nfts.count({numeric_id : null});
+    console.log('--> NFTs remaining to Fix : ', count);
 
     }while(true);
 
