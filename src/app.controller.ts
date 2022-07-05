@@ -3,59 +3,140 @@ import { AppService } from './app.service';
 import { configService } from "./config/configuration";
 
 import nfts from 'src/models/nfts';
+import collections from 'src/models/collections';
 import { ObjectId } from 'mongodb';
+import { Collection } from 'mongoose';
+
+const  axios  = require('axios');
+let s3;
+const  aws  = require('aws-sdk');
+const  crypto  = require('crypto');
 
 const _ = require('lodash');
 const mongoose = require('mongoose');
+
+const Web3Utils = require('web3-utils');
 
 @Controller()
 export class AppController {
   constructor(private readonly appService: AppService) {
 
-    this.test();
+        this.addSortIds();
   }
+
+  private async imagesUpload(){
+    //https://images.trackthemyth.io/doodles-official_image_16567683030694a92133a80faec3d
+    console.log(await this.urlToS3('https://yt3.ggpht.com/jOdcRLZg7sRCm0fLfqTmd_bgBlr9U_LPR8wb0GRErazL_dLOMDsGeOHdgaQy9ejYYwousLcW=s900-c-k-c0x00ffffff-no-rj', 'azuki', 'image' ) ) ;
+  }
+
+  private async addSortIds(){
+
+    const collectionId = configService.getValue("COLLECTION_ID");
+
+    await this.connectToMongo();
+
+    await collections.findById({_id : new ObjectId(collectionId)}).lean();
+
+    const collectionData = await collections.findByIdAndUpdate({_id : new ObjectId(collectionId)}, {sort_id : 5}, {new : true}).lean();
+    console.log('--> Collection : ', collectionData);
+
+      console.log('--- All Done ---');
+  }
+
+  private async updateNFTaddresses(){
+
+    const collectionId = configService.getValue("COLLECTION_ID");
+
+    await this.connectToMongo();
+
+    const collectionData = await collections.findById({_id : new ObjectId(collectionId)}).lean();
+    const nftData = await nfts.find({nftCollection : new ObjectId(collectionId)}).select(['_id']).lean();
+
+    console.log('--> Collection Address : ', collectionData['address']);
+    console.log('--> Total NFTs : ',_.size(nftData));
+
+    let ids = []
+    for(let i = 0 ; i < _.size(nftData); i++){
+      ids.push(nftData[i]['_id']);
+    }
+
+    const collectionAddress = await Web3Utils.toChecksumAddress(collectionData['address']);
+    await nfts.bulkWrite( [ {updateMany : 
+      {
+        'filter' : {_id : {$in : ids} },
+        'update' : {address : collectionAddress },
+      }}]);
+
+      console.log('--- All Done ---');
+  }
+
 
   private async test(){
 
 
-    let skip = 0;
-    const limit = 1000;
-    const collectionId = configService.getValue("COLLECTION_ID");
 
-    do{
 
-    await this.connectToMongo();
+    // do{
 
-    const nftData = await nfts.find({numeric_id : null}).select(['numeric_id', 'token_id']).skip(skip).limit(limit).lean();
+    // const count = await nfts.count({numeric_id : null});
+    // console.log('--> NFTs remaining to Fix : ', count);
 
-    if(_.size(nftData) == 0)
-      break;
+    // if(_.size(nftData) == 0)
+    //   break;
     
 
-    for ( let i=0; i< _.size(nftData); i++ ){
+    // for ( let i=0; i< _.size(nftData); i++ ){
       
-      let dataToDB = {
-        numeric_id :  nftData[i]['token_id'] ? parseInt(nftData[i]['token_id']) : null
-      }
+    //   let dataToDB = {
+    //     numeric_id :  nftData[i]['token_id'] ? parseInt(nftData[i]['token_id']) : null
+    //   }
 
-      // console.log(nftData[i]);
+    //   // console.log(nftData[i]);
 
-      // console.log(dataToDB);
+    //   // console.log(dataToDB);
       
-      await nfts.findByIdAndUpdate({_id :nftData[i]['_id'] } , dataToDB).lean();
-    }
+    //   await nfts.findByIdAndUpdate({_id :nftData[i]['_id'] } , dataToDB).lean();
+    // }
 
-    console.log("--> size of nftdata : ", _.size(nftData));
-    skip = skip + 1000;
-    console.log("--> parsed records : ", skip);
+    // console.log("--> size of nftdata : ", _.size(nftData));
 
-    const count = await nfts.count({numeric_id : null});
-    console.log('--> NFTs remaining to Fix : ', count);
-
-    }while(true);
+    // }while(true);
 
     console.log('--- All Done ---');
 
+  }
+
+
+  private async urlToS3(_image_url:string , _openSeaMetaSlug:any, type:string) {
+
+    await this.connectToAWS();
+
+    if( _image_url === null )
+      return null;
+  
+    let url=_image_url;
+    let key = _openSeaMetaSlug + "_" + type + "_" + Date.now() + crypto.randomBytes(8).toString('hex');
+    let bucket = configService.getValue('BUCKET_NAME');  
+  
+    try {
+      const { data } = await axios.get(url, { responseType: "stream" });
+  
+      const upload = await s3.upload({
+        Bucket: bucket,
+        Key: key,
+        Body: data,
+      }).promise();
+  
+      let newLink = upload.Location.split("/");
+      newLink = configService.getValue('TTM_S3_LINK') + newLink[_.size(newLink) - 1];
+  
+      return newLink;
+    } catch (error) {
+      console.error(error);
+      return null;
+      throw new Error;
+    }
+  
   }
 
   private async connectToMongo(){
@@ -66,5 +147,17 @@ export class AppController {
     console.log(err);
     })
   }
+
+  private async connectToAWS(){
+    try{
+      s3 = new aws.S3({
+        accessKeyId: configService.getValue('AWS_ACCESS_KEY_ID'),
+        secretAccessKey: configService.getValue('AWS_SECRECT_ACCESS_KEY'),
+      }) 
+      } catch(e){
+        console.log(e);
+      }
+  }
+  
 
 }
