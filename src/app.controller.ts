@@ -1,9 +1,16 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, OnModuleInit } from '@nestjs/common';
 import { AppService } from './app.service';
 import { configService } from "./config/configuration";
 
-import nfts from 'src/models/nfts';
-import collections from 'src/models/collections';
+import whitelist from './models/whitelist';
+import users from 'src/models/users';
+import nftTransfers from "./models/nftTransfers";
+import collections from "./models/collections";
+import nfts from "./models/nfts";
+import posts from 'src/models/posts';
+import favorites from 'src/models/favorites';
+import follows from 'src/models/follows';
+import flags from 'src/models/flags';
 import { ObjectId } from 'mongodb';
 import { Collection } from 'mongoose';
 
@@ -18,10 +25,41 @@ const mongoose = require('mongoose');
 const Web3Utils = require('web3-utils');
 
 @Controller()
-export class AppController {
-  constructor(private readonly appService: AppService) {
+export class AppController implements OnModuleInit{
+  constructor(private readonly appService: AppService) {}
 
-        this.addSortIds();
+  async onModuleInit(){
+
+  }
+
+  private async deleteInconsistentFavs(){
+
+    await this.connectToMongo();
+    
+    const favs = await favorites.find({}).select(['posts']).lean();
+
+    let favToDelete = [];
+    for(let i = 0 ; i < _.size(favs); i++){
+      const res = await posts.exists({_id : favs[i]['posts']})
+      if( res == null)
+        favToDelete.push(favs[i]['_id']);
+    }
+
+    //await favorites.deleteMany({_id : {$in : favToDelete}});
+
+    console.log(favToDelete);
+
+    console.log('--- All Done ---');
+  }
+
+
+  private trimTest(){
+
+    const temp = "      Hellooo\nWorld\n\nTest        ";
+    console.log(temp);
+    console.log('----------------------------------');
+    console.log(temp.trim());
+
   }
 
   private async imagesUpload(){
